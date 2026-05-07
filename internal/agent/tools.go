@@ -3,8 +3,11 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/cabbage/dingding-bot/internal/llm"
@@ -147,35 +150,31 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 		if query == "" {
 			return "error: no query provided"
 		}
-		url := "https://html.duckduckgo.com/html/?q=" + strings.ReplaceAll(query, " ", "+")
-		resp, err := a.llm.HTTP.Get(url)
+		// Use Bing search (works from China)
+		url := "https://www.bing.com/search?q=" + strings.ReplaceAll(query, " ", "+") + "&count=10"
+		req, _ := http.NewRequest("GET", url, nil)
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		resp, err := a.llm.HTTP.Do(req)
 		if err != nil {
 			return fmt.Sprintf("error: %v", err)
 		}
 		defer resp.Body.Close()
-		buf := make([]byte, 16384)
-		n, _ := resp.Body.Read(buf)
-		html := string(buf[:n])
-		// Simple extraction: get text between result snippets
+		body, _ := io.ReadAll(resp.Body)
+		content := string(body)
+		// Extract titles from h2 > a tags
 		var results []string
-		for _, line := range strings.Split(html, "\n") {
-			line = strings.TrimSpace(line)
-			if strings.Contains(line, "result__snippet") || strings.Contains(line, "result__title") {
-				// Strip HTML tags
-				text := stripTags(line)
-				if text != "" {
-					results = append(results, text)
-				}
+		r := regexp.MustCompile(`<h2[^>]*><a[^>]*>(.*?)</a></h2>`)
+		matches := r.FindAllStringSubmatch(content, 10)
+		for _, m := range matches {
+			text := stripTags(m[1])
+			if text != "" {
+				results = append(results, text)
 			}
 		}
 		if len(results) == 0 {
 			return "no results found for: " + query
 		}
-		out := strings.Join(results, "\n")
-		if len(out) > 3000 {
-			out = out[:3000]
-		}
-		return out
+		return strings.Join(results, "\n")
 
 	case "web_fetch":
 		url, _ := args["url"].(string)
