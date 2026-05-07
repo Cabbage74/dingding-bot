@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -196,26 +196,102 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 		if albumID == "" {
 			return "error: no album_id provided"
 		}
+		// Record existing dirs before download
+		existingDirs := map[string]bool{}
+		entries, _ := os.ReadDir("/opt/dingding-bot")
+		for _, e := range entries {
+			if e.IsDir() {
+				existingDirs[e.Name()] = true
+			}
+		}
+
 		cmd := exec.Command("/usr/local/bin/jmcomic", albumID)
 		cmd.Dir = "/opt/dingding-bot"
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Sprintf("download failed: %v\n%s", err, string(out))
 		}
-		// List downloaded files
-		files, _ := exec.Command("find", "/opt/dingding-bot", "-maxdepth", "2", "-newer", "/opt/dingding-bot/bot", "-type", "d").CombinedOutput()
-		dirs := strings.Split(strings.TrimSpace(string(files)), "\n")
-		var urls []string
-		for _, d := range dirs {
-			name := filepath.Base(d)
-			if name != "" && name != "downloads" && name != "data" && name != "chroma_data" {
-				urls = append(urls, fmt.Sprintf("http://111.229.123.17:8080/files/%s/", name))
+
+		// Extract album title from jmcomic output
+		output := string(out)
+		title := ""
+		for _, line := range strings.Split(output, "\n") {
+			if idx := strings.Index(line, "标题: ["); idx >= 0 {
+				rest := line[idx+len("标题: ["):]
+				if end := strings.Index(rest, "]"); end >= 0 {
+					title = rest[:end]
+				}
 			}
 		}
-		if len(urls) > 0 {
-			return "download complete. Files at:\n" + strings.Join(urls, "\n")
+
+		// Find new directories created by this download
+		entries, _ = os.ReadDir("/opt/dingding-bot")
+		var newDirs []string
+		for _, e := range entries {
+			if e.IsDir() && !existingDirs[e.Name()] {
+				skip := false
+				for _, sys := range []string{"data", "chroma_data", "downloads"} {
+					if e.Name() == sys {
+						skip = true
+						break
+					}
+				}
+				if !skip {
+					newDirs = append(newDirs, e.Name())
+				}
+			}
 		}
-		return "download complete: " + strings.TrimSpace(string(out))
+
+		// Build response: ALWAYS return URLs if directories found
+		if len(newDirs) > 0 {
+			var urls []string
+			for _, d := range newDirs {
+				urls = append(urls, fmt.Sprintf("http://111.229.123.17:8080/files/%s/", d))
+			}
+			if title != "" {
+				return fmt.Sprintf("「%s」下载完成\n%s", title, strings.Join(urls, "\n"))
+			}
+			return "download complete\n" + strings.Join(urls, "\n")
+		}
+
+		// No new dirs means files already existed. Find them by title or manual lookup.
+		// Check for directories that might match the title
+		if title != "" {
+			// Try to find matching directory
+			entries, _ = os.ReadDir("/opt/dingding-bot")
+			for _, e := range entries {
+				if e.IsDir() && strings.Contains(e.Name(), title) {
+					return fmt.Sprintf("「%s」(已存在)\nhttp://111.229.123.17:8080/files/%s/", title, e.Name())
+				}
+			}
+		}
+
+		// Last resort: list all downloadable dirs
+		entries, _ = os.ReadDir("/opt/dingding-bot")
+		var allDirs []string
+		for _, e := range entries {
+			if e.IsDir() {
+				skip := false
+				for _, sys := range []string{"data", "chroma_data", "downloads"} {
+					if e.Name() == sys {
+						skip = true
+						break
+					}
+				}
+				if !skip {
+					allDirs = append(allDirs, e.Name())
+				}
+			}
+		}
+		if len(allDirs) > 0 {
+			var urls []string
+			for _, d := range allDirs {
+				urls = append(urls, fmt.Sprintf("http://111.229.123.17:8080/files/%s/", d))
+			}
+			return "download complete. Available files:\n" + strings.Join(urls, "\n")
+		}
+
+		return "no download directories found"
 
 	case "web_fetch":
 		url, _ := args["url"].(string)

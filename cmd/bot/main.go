@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"strings"
 	"net/http"
 	"os"
@@ -177,10 +176,11 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	// Serve downloaded files
+	// Serve downloaded files with directory listing
+	fs := http.FileServer(http.Dir("/opt/dingding-bot"))
 	r.Get("/files/*", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/files/")
-		http.ServeFile(w, r, filepath.Join("/opt/dingding-bot", path))
+		r.URL.Path = "/" + strings.TrimPrefix(r.URL.Path, "/files/")
+		fs.ServeHTTP(w, r)
 	})
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
