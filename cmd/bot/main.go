@@ -268,6 +268,16 @@ func main() {
 		w.Write([]byte(`{"ok":true}`))
 	})
 
+	r.Get("/api/tools", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		tools := []map[string]interface{}{
+			{"name": "run_shell", "description": "在服务器上执行Shell命令 (date, free等)", "status": "active"},
+			{"name": "http_request", "description": "HTTPS GET请求，获取外部API数据", "status": "active"},
+			{"name": "opencli", "description": "OpenCLI网页浏览 (需要Chrome扩展)", "status": "unavailable"},
+		}
+		json.NewEncoder(w).Encode(tools)
+	})
+
 	r.Get("/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte(dashboardHTML))
@@ -360,6 +370,10 @@ th { color: #888; font-weight: 500; }
   <div class="card"><div class="label">Cron 技能</div><div class="value green" id="cron">0</div></div>
 </div>
 <div class="section">
+  <h2>可用 Tools</h2>
+  <div id="tools_list"></div>
+</div>
+<div class="section">
   <h2>技能列表</h2>
   <div id="skill_form" style="display:none">
     <div class="form-row">
@@ -380,8 +394,9 @@ th { color: #888; font-weight: 500; }
 <div class="refresh" id="updated">加载中...</div>
 <script>
 async function load() {
-  const [stats, skills, memories] = await Promise.all([
+  const [stats, tools, skills, memories] = await Promise.all([
     fetch('/api/stats').then(r=>r.json()),
+    fetch('/api/tools').then(r=>r.json()),
     fetch('/api/skills').then(r=>r.json()),
     fetch('/api/memories').then(r=>r.json())
   ]);
@@ -389,6 +404,9 @@ async function load() {
   document.getElementById('msgs').textContent = stats.messages_total;
   document.getElementById('skills_count').textContent = stats.skills_total;
   document.getElementById('cron').textContent = stats.cron_skills;
+  if (tools && tools.length > 0) {
+    document.getElementById('tools_list').innerHTML = '<table><tr><th>Tool</th><th>描述</th><th>状态</th></tr>'+tools.map(t=>'<tr><td><code>'+t.name+'</code></td><td>'+t.description+'</td><td><span class="tag '+(t.status==='active'?'mention':'cron')+'">'+(t.status==='active'?'✅ 可用':'❌ '+t.status)+'</span></td></tr>').join('')+'</table>';
+  }
   if (skills && skills.length > 0) {
     document.getElementById('skills_list').innerHTML = '<table><tr><th>名称</th><th>类型</th><th>配置</th><th>操作</th></tr>'+skills.map(s=>'<tr><td>'+s.name+'</td><td><span class="tag '+s.trigger_type+'">'+s.trigger_type+'</span></td><td>'+s.trigger_config+'</td><td><button class="btn del" onclick="delSkill('+s.id+')">删除</button></td></tr>').join('')+'</table>';
   } else {
