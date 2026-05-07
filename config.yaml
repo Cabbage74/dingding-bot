@@ -1,0 +1,28 @@
+server:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 30s
+
+dingtalk:
+  app_key: ""
+  app_secret: ""
+  robot_code: ""
+
+deepseek:
+  api_key: ""
+  chat_url: "https://api.deepseek.com/anthropic"
+  embed_url: "https://chat.ecnu.edu.cn/open/api/v1"
+  embed_api_key: ""
+  model: "deepseek-v4-pro[1m]"
+  embedding_model: "ecnu-embedding-small"
+
+chroma:
+  url: "http://localhost:8000"
+  collection: "dingding_memories"
+
+sqlite:
+  path: "./data/bot.db"
+
+context:
+  max_messages: 20
+  ttl: 30m

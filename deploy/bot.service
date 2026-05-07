@@ -1,0 +1,15 @@
+[Unit]
+Description=DingDing Group AI Bot
+After=network.target docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/dingding-bot
+ExecStart=/opt/dingding-bot/bot
+Restart=always
+RestartSec=5
+Environment=CONFIG_PATH=/opt/dingding-bot/config.yaml
+
+[Install]
+WantedBy=multi-user.target
