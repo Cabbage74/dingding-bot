@@ -79,9 +79,6 @@ func (a *Agent) ProcessMessage(event *dingtalk.Event) error {
 		a.onMessage()
 	}
 
-	// Save message for weekly summary
-	a.skills.SaveMessage(chatID, userName, content)
-
 	// 0. Handle commands
 	if done := a.handleCommands(chatID, userName, content, event.SessionWebhook); done {
 		return nil
@@ -395,31 +392,6 @@ func (a *Agent) handleCommands(chatID, userName, content, webhook string) bool {
 			return true
 		}
 		reply(fmt.Sprintf("已忘记：%s", deleted.Document))
-		return true
-	}
-
-	// Weekly summary
-	if strings.Contains(content, "本周总结") || strings.Contains(content, "群聊周报") || strings.Contains(content, "这周总结") {
-		msgs, err := a.skills.GetWeeklyMessages(chatID)
-		if err != nil || len(msgs) == 0 {
-			reply("这周还没什么人聊天呢~")
-			return true
-		}
-		msgText := strings.Join(msgs, "\n")
-		if len(msgText) > 8000 {
-			msgText = msgText[len(msgText)-8000:]
-		}
-		resp, err := a.llm.ChatCompletion(&llm.ChatRequest{
-			Model: a.llmModel,
-			Messages: []llm.Message{{Role: "user", Content: "以下是本周群聊记录，请总结：\n" + msgText}},
-			System: "你是一个群聊总结助手。根据群聊记录，生成一份简洁的周报。包括：热门话题、活跃成员、有趣发言。用轻松幽默的语气。200字以内。",
-			MaxTokens: 500,
-		})
-		if err != nil {
-			reply("生成总结失败")
-			return true
-		}
-		reply(resp.Text)
 		return true
 	}
 

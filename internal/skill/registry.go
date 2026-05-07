@@ -155,37 +155,6 @@ func (r *Registry) Match(content string) []store.Skill {
 	return matched
 }
 
-// SaveMessage stores a chat message for later summarization.
-func (r *Registry) SaveMessage(chatID, userName, content string) error {
-	_, err := r.db.Exec(
-		`INSERT INTO messages (chat_id, user_name, content) VALUES (?, ?, ?)`,
-		chatID, userName, content,
-	)
-	return err
-}
-
-// GetWeeklyMessages returns messages from the past 7 days for a chat.
-func (r *Registry) GetWeeklyMessages(chatID string) ([]string, error) {
-	rows, err := r.db.Query(
-		`SELECT user_name, content FROM messages WHERE chat_id = ? AND created_at > datetime('now', '-7 days') ORDER BY created_at ASC`,
-		chatID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var msgs []string
-	for rows.Next() {
-		var user, content string
-		if err := rows.Scan(&user, &content); err != nil {
-			continue
-		}
-		msgs = append(msgs, fmt.Sprintf("%s: %s", user, content))
-	}
-	return msgs, nil
-}
-
 // GetCronSkills returns all cron-triggered skills.
 func (r *Registry) GetCronSkills() ([]store.Skill, error) {
 	rows, err := r.db.Query(
