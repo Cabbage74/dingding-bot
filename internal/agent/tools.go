@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -49,6 +50,17 @@ func (a *Agent) getTools() []llm.ToolDefinition {
 					"query": {Type: "string", Description: "The search query"},
 				},
 				Required: []string{"query"},
+			},
+		},
+		{
+			Name:        "jm_download",
+			Description: "Download an album from JM (禁漫) by album ID. Usage: jm_download with album_id='123456'. Downloads to /opt/dingding-bot/downloads/.",
+			InputSchema: llm.InputSchema{
+				Type: "object",
+				Properties: map[string]llm.SchemaProp{
+					"album_id": {Type: "string", Description: "The JM album ID to download (numeric)"},
+				},
+				Required: []string{"album_id"},
 			},
 		},
 		{
@@ -178,6 +190,32 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 			return "no results found for: " + query
 		}
 		return strings.Join(results, "\n")
+
+	case "jm_download":
+		albumID, _ := args["album_id"].(string)
+		if albumID == "" {
+			return "error: no album_id provided"
+		}
+		cmd := exec.Command("/usr/local/bin/jmcomic", albumID)
+		cmd.Dir = "/opt/dingding-bot"
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Sprintf("download failed: %v\n%s", err, string(out))
+		}
+		// List downloaded files
+		files, _ := exec.Command("find", "/opt/dingding-bot", "-maxdepth", "2", "-newer", "/opt/dingding-bot/bot", "-type", "d").CombinedOutput()
+		dirs := strings.Split(strings.TrimSpace(string(files)), "\n")
+		var urls []string
+		for _, d := range dirs {
+			name := filepath.Base(d)
+			if name != "" && name != "downloads" && name != "data" && name != "chroma_data" {
+				urls = append(urls, fmt.Sprintf("http://111.229.123.17:8080/files/%s/", name))
+			}
+		}
+		if len(urls) > 0 {
+			return "download complete. Files at:\n" + strings.Join(urls, "\n")
+		}
+		return "download complete: " + strings.TrimSpace(string(out))
 
 	case "web_fetch":
 		url, _ := args["url"].(string)

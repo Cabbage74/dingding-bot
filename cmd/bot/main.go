@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"strings"
 	"net/http"
 	"os"
 	"os/signal"
@@ -175,6 +177,12 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	// Serve downloaded files
+	r.Get("/files/*", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/files/")
+		http.ServeFile(w, r, filepath.Join("/opt/dingding-bot", path))
+	})
+
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
@@ -273,6 +281,7 @@ func main() {
 		tools := []map[string]interface{}{
 			{"name": "run_shell", "description": "在服务器上执行Shell命令 (date, free等)", "status": "active"},
 			{"name": "http_request", "description": "HTTPS GET请求，获取外部API数据", "status": "active"},
+			{"name": "jm_download", "description": "JM漫画下载，传入album_id即可下载", "status": "active"},
 			{"name": "web_search", "description": "Bing搜索，无需浏览器，国内可用", "status": "active"},
 			{"name": "web_fetch", "description": "Headless Chrome浏览网页提取文字", "status": "active"},
 		}
