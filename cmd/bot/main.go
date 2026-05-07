@@ -273,7 +273,7 @@ func main() {
 		tools := []map[string]interface{}{
 			{"name": "run_shell", "description": "在服务器上执行Shell命令 (date, free等)", "status": "active"},
 			{"name": "http_request", "description": "HTTPS GET请求，获取外部API数据", "status": "active"},
-			{"name": "opencli", "description": "OpenCLI网页浏览 (需要Chrome扩展)", "status": "unavailable"},
+			{"name": "web_fetch", "description": "通过Headless Chrome浏览网页，提取文字内容", "status": "active"},
 		}
 		json.NewEncoder(w).Encode(tools)
 	})

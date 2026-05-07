@@ -37,14 +37,14 @@ func (a *Agent) getTools() []llm.ToolDefinition {
 			},
 		},
 		{
-			Name:        "opencli",
-			Description: "Run an OpenCLI command to access websites as structured data. Use for searching/browsing content from Bilibili, Zhihu, GitHub, HackerNews, Reddit, Twitter, etc. Example commands: 'hackernews top --limit 5', 'bilibili hot --limit 5', 'github search --query AI --limit 5'. Run 'opencli list' to see all available sites.",
+			Name:        "web_fetch",
+			Description: "Fetch and extract text content from a web page using headless Chrome. Use for reading articles, checking web pages, or getting info from websites. Returns the visible text on the page (up to 5000 chars).",
 			InputSchema: llm.InputSchema{
 				Type: "object",
 				Properties: map[string]llm.SchemaProp{
-					"command": {Type: "string", Description: "The opencli command to run (e.g. 'bilibili hot --limit 5')"},
+					"url": {Type: "string", Description: "The URL of the web page to fetch (HTTPS only)"},
 				},
-				Required: []string{"command"},
+				Required: []string{"url"},
 			},
 		},
 	}
@@ -131,18 +131,21 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 		}
 		return result
 
-	case "opencli":
-		cmd, _ := args["command"].(string)
-		if cmd == "" {
-			return "error: no command provided"
+	case "web_fetch":
+		url, _ := args["url"].(string)
+		if url == "" {
+			return "error: no url provided"
 		}
-		out, err := exec.Command("opencli", strings.Fields(cmd)...).CombinedOutput()
+		if !strings.HasPrefix(url, "https://") {
+			return "error: only HTTPS URLs are allowed"
+		}
+		out, err := exec.Command("/opt/dingding-bot/web_fetch.sh", url, "12").CombinedOutput()
 		if err != nil {
 			return fmt.Sprintf("error: %v\noutput: %s", err, string(out))
 		}
 		result := strings.TrimSpace(string(out))
-		if len(result) > 3000 {
-			result = result[:3000] + "..."
+		if len(result) > 5000 {
+			result = result[:5000] + "..."
 		}
 		return result
 
