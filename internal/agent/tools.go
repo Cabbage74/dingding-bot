@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -151,9 +152,10 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 			return "error: no query provided"
 		}
 		// Use Bing search (works from China)
-		url := "https://cn.bing.com/search?q=" + strings.ReplaceAll(query, " ", "+") + "&setlang=zh-cn&count=10"
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		searchURL := "https://cn.bing.com/search?q=" + url.QueryEscape(query) + "&setlang=zh-cn&count=10"
+		req, _ := http.NewRequest("GET", searchURL, nil)
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36")
+		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 		resp, err := a.llm.HTTP.Do(req)
 		if err != nil {
 			return fmt.Sprintf("error: %v", err)
@@ -161,9 +163,10 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
 		content := string(body)
+		slog.Info("web_search", "url", searchURL, "len", len(content), "status", resp.StatusCode)
 		// Extract titles from h2 > a tags
 		var results []string
-		r := regexp.MustCompile(`<h2[^>]*><a[^>]*>(.*?)</a></h2>`)
+		r := regexp.MustCompile(`<h2[^>]*?>\s*<a[^>]*?>(.*?)</a>\s*</h2>`)
 		matches := r.FindAllStringSubmatch(content, 10)
 		for _, m := range matches {
 			text := stripTags(m[1])
