@@ -341,7 +341,7 @@ const dashboardHTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>尼格 Bot Dashboard</title>
+<title>赵庆辉 Bot Dashboard</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: -apple-system, sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
@@ -372,7 +372,7 @@ th { color: #888; font-weight: 500; }
 </style>
 </head>
 <body>
-<h1>🤖 尼格 Bot Dashboard</h1>
+<h1>🤖 赵庆辉 Bot Dashboard</h1>
 <div class="grid">
   <div class="card"><div class="label">运行时间</div><div class="value blue" id="uptime">--</div></div>
   <div class="card"><div class="label">处理消息</div><div class="value" id="msgs">0</div></div>

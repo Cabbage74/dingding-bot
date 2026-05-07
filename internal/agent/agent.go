@@ -400,7 +400,7 @@ func (a *Agent) handleCommands(chatID, userName, content, webhook string) bool {
 		skills, _ := a.skills.List()
 		memories := a.chroma.ListMemories(1)
 		memCount := len(memories)
-		reply(fmt.Sprintf("🤖 尼格运行正常\n• 技能数：%d\n• 记忆数：%d",
+		reply(fmt.Sprintf("🤖 赵庆辉运行正常\n• 技能数：%d\n• 记忆数：%d",
 			len(skills), memCount))
 		return true
 	}
