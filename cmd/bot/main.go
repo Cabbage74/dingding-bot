@@ -273,7 +273,8 @@ func main() {
 		tools := []map[string]interface{}{
 			{"name": "run_shell", "description": "在服务器上执行Shell命令 (date, free等)", "status": "active"},
 			{"name": "http_request", "description": "HTTPS GET请求，获取外部API数据", "status": "active"},
-			{"name": "web_fetch", "description": "通过Headless Chrome浏览网页，提取文字内容", "status": "active"},
+			{"name": "web_search", "description": "DuckDuckGo搜索，无需浏览器", "status": "active"},
+			{"name": "web_fetch", "description": "Headless Chrome浏览网页提取文字", "status": "active"},
 		}
 		json.NewEncoder(w).Encode(tools)
 	})

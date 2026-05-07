@@ -37,8 +37,19 @@ func (a *Agent) getTools() []llm.ToolDefinition {
 			},
 		},
 		{
+			Name:        "web_search",
+			Description: "Search the web using DuckDuckGo (HTML version, no JavaScript required). Returns search result titles and snippets. Use for finding current information, news, or answers to questions. Works on the server without a browser.",
+			InputSchema: llm.InputSchema{
+				Type: "object",
+				Properties: map[string]llm.SchemaProp{
+					"query": {Type: "string", Description: "The search query"},
+				},
+				Required: []string{"query"},
+			},
+		},
+		{
 			Name:        "web_fetch",
-			Description: "Fetch and extract text content from a web page using headless Chrome. Use for reading articles, checking web pages, or getting info from websites. Returns the visible text on the page (up to 5000 chars).",
+			Description: "Fetch and extract text content from a web page using headless Chrome. Use for reading articles, checking web pages, or getting info from websites. Returns the visible text on the page (up to 5000 chars). Note: some sites (Zhihu, Bilibili) require login and will show login page instead.",
 			InputSchema: llm.InputSchema{
 				Type: "object",
 				Properties: map[string]llm.SchemaProp{
@@ -131,6 +142,41 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 		}
 		return result
 
+	case "web_search":
+		query, _ := args["query"].(string)
+		if query == "" {
+			return "error: no query provided"
+		}
+		url := "https://html.duckduckgo.com/html/?q=" + strings.ReplaceAll(query, " ", "+")
+		resp, err := a.llm.HTTP.Get(url)
+		if err != nil {
+			return fmt.Sprintf("error: %v", err)
+		}
+		defer resp.Body.Close()
+		buf := make([]byte, 16384)
+		n, _ := resp.Body.Read(buf)
+		html := string(buf[:n])
+		// Simple extraction: get text between result snippets
+		var results []string
+		for _, line := range strings.Split(html, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.Contains(line, "result__snippet") || strings.Contains(line, "result__title") {
+				// Strip HTML tags
+				text := stripTags(line)
+				if text != "" {
+					results = append(results, text)
+				}
+			}
+		}
+		if len(results) == 0 {
+			return "no results found for: " + query
+		}
+		out := strings.Join(results, "\n")
+		if len(out) > 3000 {
+			out = out[:3000]
+		}
+		return out
+
 	case "web_fetch":
 		url, _ := args["url"].(string)
 		if url == "" {
@@ -182,6 +228,21 @@ func toolUsesToContent(tools []llm.ToolUseBlock) []interface{} {
 		})
 	}
 	return blocks
+}
+
+func stripTags(s string) string {
+	var b strings.Builder
+	inTag := false
+	for _, c := range s {
+		if c == '<' {
+			inTag = true
+		} else if c == '>' {
+			inTag = false
+		} else if !inTag {
+			b.WriteRune(c)
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 func toolResultsToContent(results []llm.ToolResultBlock) []interface{} {
