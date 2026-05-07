@@ -41,7 +41,7 @@ func (a *Agent) getTools() []llm.ToolDefinition {
 		},
 		{
 			Name:        "web_search",
-			Description: "Search the web using DuckDuckGo (HTML version, no JavaScript required). Returns search result titles and snippets. Use for finding current information, news, or answers to questions. Works on the server without a browser.",
+			Description: "Search the web using Bing. Returns search result titles. Use for finding current information, news, or answers to questions. Query can be in Chinese or English.",
 			InputSchema: llm.InputSchema{
 				Type: "object",
 				Properties: map[string]llm.SchemaProp{
@@ -151,7 +151,7 @@ func (a *Agent) executeTool(name string, input json.RawMessage) string {
 			return "error: no query provided"
 		}
 		// Use Bing search (works from China)
-		url := "https://www.bing.com/search?q=" + strings.ReplaceAll(query, " ", "+") + "&count=10"
+		url := "https://cn.bing.com/search?q=" + strings.ReplaceAll(query, " ", "+") + "&setlang=zh-cn&count=10"
 		req, _ := http.NewRequest("GET", url, nil)
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
 		resp, err := a.llm.HTTP.Do(req)
