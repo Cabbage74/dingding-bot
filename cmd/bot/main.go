@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"net/http"
 	"os"
 	"os/signal"
@@ -125,6 +126,32 @@ func main() {
 		if s.ChatID == "" {
 			return fmt.Errorf("skill %q has no chat_id", s.Name)
 		}
+
+		// Weekly summary: aggregate messages then call LLM
+		if strings.Contains(s.Name, "周报") || strings.Contains(s.ActionPrompt, "周报") ||
+			strings.Contains(s.Name, "总结") || strings.Contains(s.ActionPrompt, "总结本周") {
+			msgs, err := skillReg.GetWeeklyMessages(s.ChatID)
+			if err != nil || len(msgs) == 0 {
+				dtClient.ReplyText(s.ChatID, "这周群里还没人聊天~")
+				return nil
+			}
+			msgText := strings.Join(msgs, "\n")
+			if len(msgText) > 8000 {
+				msgText = msgText[len(msgText)-8000:]
+			}
+			resp, err := llmClient.ChatCompletion(&llm.ChatRequest{
+				Model: cfg.DeepSeek.Model,
+				Messages: []llm.Message{{Role: "user", Content: "以下是本周群聊记录，请总结：\n" + msgText}},
+				System: "你是一个群聊总结助手。根据群聊记录，生成一份简洁的周报。包括：热门话题、活跃成员、有趣发言。用轻松幽默的语气。",
+				MaxTokens: 800,
+			})
+			if err != nil {
+				return fmt.Errorf("weekly summary llm: %w", err)
+			}
+			dtClient.ReplyText(s.ChatID, "📊 本周群聊周报\n\n"+resp.Text)
+			return nil
+		}
+
 		resp, err := llmClient.ChatCompletion(&llm.ChatRequest{
 			Model:    cfg.DeepSeek.Model,
 			Messages: []llm.Message{{Role: "user", Content: s.ActionPrompt}},

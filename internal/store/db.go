@@ -54,7 +54,21 @@ func migrate(db *sql.DB) error {
 		return err
 	}
 
-	// Add chat_id column if upgrading from older schema
 	db.Exec(`ALTER TABLE skills ADD COLUMN chat_id TEXT NOT NULL DEFAULT ''`)
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			chat_id TEXT NOT NULL,
+			user_name TEXT NOT NULL DEFAULT '',
+			content TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_messages_chat_time ON messages(chat_id, created_at)`)
 	return nil
 }
